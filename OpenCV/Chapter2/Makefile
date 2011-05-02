@@ -1,5 +1,5 @@
-PROGRAM = capture.out
-OBJECTS = capture.o
+PROGRAM = chapter.out
+OBJECTS = diff.o skin.o main.o
 CFLAGS = -ggdb `pkg-config opencv --cflags --libs`
 
 .PHONY: all
