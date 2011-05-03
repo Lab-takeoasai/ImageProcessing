@@ -3,56 +3,76 @@
 #include <highgui.h>
 #include <cxcore.h>
 
-static const char windowName[] = "Window";
-static const char trackbarName[] = "Threshold";
-static int level = 128;
+static const char windowCannyName[] = "Window Canny";
+static const char windowHoughName[] = "Window Hough";
+
+static const char trackbarCannyMinName[] = "Min";
+static const char trackbarCannyMaxName[] = "Max";
+static unsigned int cannyMin = 0;
+static unsigned int cannyMax = 255;
 
 static IplImage *objectImage;
-static IplImage *sourceImage;
-static IplImage *templateImage;
 
-
-
-void templateMatching() {
-	IplImage *image = cvCloneImage(sourceImage);
-	IplImage *binaryObject = cvCreateImage(cvGetSize(objectImage), IPL_DEPTH_8U, 1);
-	IplImage *binaryTemplate = cvCreateImage(cvGetSize(templateImage), IPL_DEPTH_8U, 1);
-	IplImage *differenceMapImage = cvCreateImage(cvSize(objectImage->width-templateImage->width+1, objectImage->height-templateImage->height+1), IPL_DEPTH_32F, 1);
-	CvPoint minLocation;
+IplImage *_canny(IplImage *image) {
+	IplImage *cannyImage = cvCreateImage(cvGetSize(image), IPL_DEPTH_8U, 1);
 	
-	cvThreshold(objectImage, binaryObject, level, 255, CV_THRESH_BINARY);
-	cvThreshold(templateImage, binaryTemplate, level, 255, CV_THRESH_BINARY);
+	cvCanny(image, cannyImage, cannyMin, cannyMax, 3);
 	
-	cvMatchTemplate(binaryObject, binaryTemplate, differenceMapImage, CV_TM_SQDIFF);
-	cvMinMaxLoc(differenceMapImage, NULL, NULL, &minLocation, NULL, NULL);
-	
-	cvRectangle(image, minLocation, cvPoint(minLocation.x+templateImage->width, minLocation.y+templateImage->height), CV_RGB(255,0,0), 3, 1, 0);
-	
-	cvShowImage(windowName, image);
+	return cannyImage;
 }
 
-void on_change(int value) {
-	templateMatching();
+void cannyDetection() {
+	IplImage *cannyImage = _canny(objectImage);
+	
+	cvShowImage(windowCannyName, cannyImage);
+	
+	cvReleaseImage(&cannyImage);
+}
+
+void changeCanny(int value) {
+	cannyDetection();
+}
+
+void houghDetection() {
+	IplImage *temporaryImage = cvCreateImage(cvGetSize(objectImage), IPL_DEPTH_32F, 1);
+	IplImage *houghImage = cvLoadImage("object.jpg", CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
+	IplImage *cannyImage = _canny(objectImage);
+	CvMemStorage *storage = cvCreateMemStorage(0);
+	CvSeq *lines = NULL;
+	
+	lines = cvHoughLines2(cannyImage, storage, CV_HOUGH_PROBABILISTIC, 1, (CV_PI/180), 50, 50, 10);
+	
+	for ( int i = 0; i < lines->total; i++ ) {
+		CvPoint *line = (CvPoint *)cvGetSeqElem(lines, i);
+		cvLine(houghImage, line[0], line[1], CV_RGB(255,0,0), 1, 1, 0);
+	}
+	
+	cvShowImage(windowHoughName, houghImage);
+	
+	cvReleaseImage(&houghImage);
 }
 
 int main (int argc, char const *argv[])
 {
-	sourceImage = cvLoadImage("source.bmp", CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
-	objectImage = cvLoadImage("source.bmp", CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_GRAYSCALE);
-	templateImage = cvLoadImage("template.bmp", CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_GRAYSCALE);
+	objectImage = cvLoadImage("object.jpg", CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_GRAYSCALE);
 	
-	cvNamedWindow(windowName, CV_WINDOW_AUTOSIZE);
-	cvCreateTrackbar(trackbarName, windowName, &level, 255, on_change);
+	cvNamedWindow(windowCannyName, CV_WINDOW_AUTOSIZE);
+	cvCreateTrackbar(trackbarCannyMinName, windowCannyName, &cannyMin, 255, changeCanny);
+	cvCreateTrackbar(trackbarCannyMaxName, windowCannyName, &cannyMax, 255, changeCanny);
+	
+	cvNamedWindow(windowHoughName, CV_WINDOW_AUTOSIZE);
 	
 	while (1) {
 		int key = cvWaitKey(10);
 		
-		templateMatching();
+		cannyDetection();
+		houghDetection();
 		
 		if ( key == 'q' ) {
 			break;
 		}
 	}
-	cvDestroyWindow(windowName);
+	cvDestroyWindow(windowCannyName);
+	cvDestroyWindow(windowHoughName);
 	return 0;
 }
