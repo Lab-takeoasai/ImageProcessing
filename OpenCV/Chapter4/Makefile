@@ -1,9 +1,12 @@
 CFLAGS = -std=c99 -ggdb `pkg-config opencv --cflags --libs`
 
 .PHONY: all
-all: binarize.out histogram.out contours.out edge.out hough.out
+all: binarize.out histogram.out contours.out edge.out hough.out template.out
 
 edge.out: edge.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+template.out: template.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 hough.out: hough.o
