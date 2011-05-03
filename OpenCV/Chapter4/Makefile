@@ -27,4 +27,4 @@ histogram.out: histogram.o
 
 .PHONY: clean
 clean:
-	$(RM) *.out *.o *.bmp
+	$(RM) *.out *.o
